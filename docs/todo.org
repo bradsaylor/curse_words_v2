@@ -1,0 +1,16 @@
+* DONE Display file and keywords of current entry on screen
+** get rid of results window
+* DONE Bad input checking and handling
+* Title screen
+* DONE Database verification at start
+** check that every open tag has a closed tag
+** check that all tags are present for a directory
+** check that the tags are in the right order
+- read lines until <*** is encountered
+- make sure the line is <***entry***>
+- read lines until <*** is encountered
+- make sure the line is <***date***>
+-... so on and so forth
+* Document with doxygen
+* Refactor code into functions where possible
+* DONE Delete unused code

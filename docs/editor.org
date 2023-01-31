@@ -1,0 +1,192 @@
+* Bug tracking
+** 1. wrapping single letter onto next line with chars at line beginning does not make a space between wrapped char and word on next line
+*** In input_handler.c spc handler, added 'check next line first char' and added space if isalphanum
+** 2. Fix for #1 created new bug. advancing ay SPC at end of line when chars at beginning of next line inserted an extra space between SPC and the word on the next line
+*** added additional check to fix #1 to skip the space if last character entered was a SPC
+** 3. When cursor is one space behind last word on line and advances far enought to initiate a wrap the cursor wraps and space is inserted before newly wrapped word on next line.
+*** incremented x_pos by one in spc_handler func if we are splitting in middle of string.  In move_curs_after_wrap changed condition to wrap_index = x_pos + 1 for implenting cursor wrap
+** 4. Return key wraps remainder of that line into the next line.  Should insert remainder into new line and move every subsequent line down
+*** used insline curses function in handle_key_ret func instead
+** 5. When entering char on last column cursor does not wrap but stays on last column.  Should wrap
+** 6. When first line blank and text on 2nd and 3rd line, curs on first col, hitting delete only brings up 2nd line to 1st line.  Third line does not move up to 2nd line
+
+* Reverse wrapping
+** IF BKSP is pressed
+*** IF in first column
+**** check to see if word under cursor may be unwrapped onto the line above
+**** if yes
+***** unwrap current word to line above
+*****  justify current line to first column
+***** repeat the process starting at next line down first column
+**** if no
+***** do nothing
+*** IF not
+**** execute BKSP on current line as already implemented
+** IF DEL is pressed
+*** Execute DEL on current line as already implemented
+*** Move to next line first column
+**** check to see if word under cursor may be unwrapped onto the line above
+**** if yes
+***** unwrap current word to line above
+*****  justify current line to first column
+***** repeat the process starting at next line down first column
+**** if no
+***** do nothing
+** Tools needed for reverse wrapping
+*** check for 'in first column'
+*** check trailing space on line above
+*** compare trailing space length to unwrap string length
+*** copy first word from current line onto end of line above
+*** left justify current line
+
+* RET, SPC, BKSPC outline
+** RET
+*** Set wrap index to current curs position
+*** if in first column
+**** copy current row from beginning into row_str
+**** clear the entire row
+**** move down to head of next row
+**** insert a blank line above this row
+**** paste row_str at head of this row
+*** otherwise
+**** copy current row from beginning into row_str
+**** split row_str at wrap_index into row_str and wrap_str
+**** copy row_str to this line from head and clear to EOL
+**** trigger recursive wrap with wrap_str
+**** move curs to next line at head
+** SPC
+*** if on last column
+**** read char at currentl pos (last col)
+**** copy char to first pos of row_str
+**** check for alnum char at head of next line
+***** if YES
+****** check for SPC as last char above
+******* if NO
+******* append SPC to row_str
+**** copy next row into next_row_str
+**** cat row_str + next_row_str
+**** check if next_row_str  is wider than screen
+***** if YES
+****** trigger wrap with next_row_str
+***** if NO
+****** clear to EOL
+****** move down one line to row head
+****** add row_str
+****** move back to head of this line
+*** if wrap is needed and not in last col
+**** copy current row from head to row_str
+**** find wrap_index of row_str (first SPC)
+**** is cursor in wrap region?
+***** if YES
+****** Insert SPC at curs position
+****** increment cursor position
+**** trigger wrap string with row_str
+**** is cursor outside of wrap region?
+***** if YES
+****** insert SPC and advance cursor
+*** Otherwise
+**** insert SPC and advance cursor
+** BKSPC
+*** if in top left corner
+**** do nothing return 1
+*** if in first column
+**** enter infinite loop
+***** copy current row (start row + unwrap_count) from head into unwrap_str
+***** calc wrap_size (number of leading alnum chars)
+***** calc trailing spaces in row above
+***** calc index to place string if unwrapped to line above (unwrap_index)
+***** Check to see if there is a word to wrap
+****** if NO (i.e. no leading alnum chars)
+******* perform a delete
+******* move to next row up to calculated index above
+***** Is wrap_string size greater than available space in line above?
+****** if YES
+******* increment unwrap_count
+******* move to head of next row
+******* restart the loop
+***** Is there is a word to wrap?
+****** if YES
+******* split unwrap_str at wrap_size index, store into wrap_str and row_str
+******* is this the first line of wrapping?
+******** if YES
+********* store current unwrap_index for resetting final cursor position
+******* perform un_wrap with unwrap_str at unwrap_index
+******* move curs to orignal row + unwrap_count at head of row
+******* left justify this line return curs to head
+****** if NO
+******* break the infinite loop
+*** otherwise
+**** Move curs one space to left and perform delete
+** DELETE
+*** 
+* Editor interface
+** returns text string
+** requires a window to run in
+* Display interface
+** requires a window layout
+** 
+* Menu interface
+** Menu is a linked list
+** Each menu has a list of options and links to next destination if that option is selected
+** Will need to decide if function pointers are used to initiate action for each item
+*** Would assume every function takes the same arguments though so might be a problem
+
+* Main program organization
+** Program keeps state to include:
+*** Present state of menu
+*** mode (menu or editor)
+**** includes active window
+* Menu tree
+** [start] {open journal file, new journal file, search}
+*** open ->{[list of journal files in my_journals/]}
+**** [prompt for entry name]
+**** open selected file with name and date stamp for editing
+*** new->{"enter new journal name"} [prompt for new file name]
+**** save new journal file
+**** [prompt for entry name]
+**** open selected file with name and date stamp for editing
+*** search->{by keyword, by string, by date}
+**** keyword-> {specific file, all files}
+***** specific file-> {[list of journal files in my_journals/]}
+****** [prompt for search term]
+****** {menu item for each search result}
+***** all files-> [prompt for search term]
+****** {menu item for each search result }
+**** string->
+***** as above
+**** date->
+***** as above
+* Search results
+** Structure that contains
+*** File name
+*** Entry date (which will be a searchable index)
+** How to display the results?
+*** Text of found entry will be displayed in the editor window
+**** Formatting issues
+***** Found entry may have been written in an editor window with different dimensions
+***** Text string contains '\n' characters from original entry, some user entered some a result of window wrapping
+***** Current editor window will impose wrapping on top of the '\n' characters
+***** Cannot tell the difference between user entered and wrapping '\n''s
+***** What to do?
+**** Ideas
+***** Somehow encode location of user entered NL's and reproduce them but ignore wrapping NL's
+****** Probably very complicated to implement
+***** Just remove all new lines and let new editor window wrap the entry
+****** Destroys intentional formatting
+*** Associated file name and keywords to be displayed in some other window
+**** May have to rethink windows to accomodate this
+* .JNL files
+** each entry startrs with <***entry***>
+** followed by a <***date***>date stamp<***/date***>
+** followed by entry title <***title***>title<***/title>
+** followed by keyword list <***keyword***>keywords<***/keyword***>
+** followed by entry text <***text***>text<***/text***>
+** each entry ends with <***/entry***>
+
+* todo
+** Shoprite
+*** drinks
+*** mom gifts
+** Kuba crafts or market for mom gifts
+** Be here for tent setup
+** Eat out for dinner
