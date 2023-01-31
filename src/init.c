@@ -2,6 +2,7 @@
 
 #include "init.h"
 
+//setup ncurses
 int init_ncurses(){
   initscr();
   keypad(stdscr, TRUE);
